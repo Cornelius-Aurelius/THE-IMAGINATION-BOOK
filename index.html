@@ -737,51 +737,27 @@
     }
 
     function paginate() {
+      // One section per page, independent of viewport size and reader font size.
       const previousSection = getCurrentSection();
       const previousPage = currentPage;
       pages = [{ type: "cover" }];
       sectionPageMap = { cover: 0 };
-
-      measureContent.innerHTML = "";
-      const maxHeight = measureContent.clientHeight;
       let current = [];
-
       for (const block of RAW_BLOCKS) {
-        const el = blockElement(block);
-        measureContent.appendChild(el);
-
-        if (measureContent.scrollHeight > maxHeight + 2 && current.length > 0) {
-          measureContent.removeChild(el);
+        if (block.sectionId && current.length) {
           pushContentPage(current);
-
-          current = [block];
-          measureContent.innerHTML = "";
-          measureContent.appendChild(blockElement(block));
-
-          if (measureContent.scrollHeight > maxHeight + 2) {
-            pushContentPage(current);
-            current = [];
-            measureContent.innerHTML = "";
-          }
-        } else if (measureContent.scrollHeight > maxHeight + 2 && current.length === 0) {
-          pushContentPage([block]);
-          measureContent.innerHTML = "";
           current = [];
-        } else {
-          current.push(block);
         }
+        current.push(block);
       }
       pushContentPage(current);
-
       renderToc();
-
       if (previousSection && sectionPageMap[previousSection] !== undefined) {
         currentPage = sectionPageMap[previousSection];
       } else {
         const saved = Number(localStorage.getItem(STORAGE_KEY));
         currentPage = Number.isFinite(saved) ? saved : previousPage;
       }
-
       currentPage = clampPage(currentPage);
       renderPage(currentPage);
     }
@@ -942,11 +918,11 @@
     });
 
     document.addEventListener("keydown", (event) => {
-      if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") {
+      if (event.key === "ArrowRight") {
         event.preventDefault();
         nextPage();
       }
-      if (event.key === "ArrowLeft" || event.key === "PageUp") {
+      if (event.key === "ArrowLeft") {
         event.preventDefault();
         prevPage();
       }
