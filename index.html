@@ -164,7 +164,11 @@
       z-index: 1;
       height: 100%;
       width: 100%;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-gutter: stable;
       padding:
         clamp(20px, 4.1vw, 48px)
         clamp(20px, 4.4vw, 58px)
@@ -367,7 +371,7 @@
 
     .settings-row {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
       margin: 10px 0 4px;
     }
@@ -382,6 +386,9 @@
       font-weight: 800;
       cursor: pointer;
     }
+
+    .settings-row #themeBtn { grid-column: 1 / -1; }
+    .settings-row button:disabled { opacity: .4; cursor: not-allowed; }
 
     .copyright {
       color: rgba(255,255,255,.58);
@@ -628,7 +635,9 @@
     <a class="menu-link" href="https://buy.stripe.com/28E00jbRIfz8aLI7TGco000">✨ Tip Cornelius</a>
     <a class="menu-link" href="https://corneliusaurelius.com/">🖤 CorneliusAurelius.com</a>
     <div class="settings-row" aria-label="Reading settings">
-      <button id="fontBtn" type="button">A+ Text</button>
+      <button id="fontDownBtn" type="button" aria-label="Decrease text size">A−</button>
+      <button id="fontResetBtn" type="button" aria-label="Reset text size">Reset</button>
+      <button id="fontBtn" type="button" aria-label="Increase text size">A+</button>
       <button id="themeBtn" type="button">Night</button>
     </div>
     <div class="copyright">© 2026 Cornelius Aurelius<br>Single-file ebook reader. Cover embedded. No separate cover upload needed.</div>
@@ -706,19 +715,24 @@
       return wrap;
     }
 
-    function applyPrefs() {
+    function loadPrefs() {
       try {
         const prefs = JSON.parse(localStorage.getItem(PREF_KEY) || "{}");
-        fontScale = Number(prefs.fontScale || 0);
+        fontScale = Math.max(-4, Math.min(12, Number(prefs.fontScale) || 0));
         darkMode = Boolean(prefs.darkMode);
       } catch (e) {
         fontScale = 0;
         darkMode = false;
       }
-      const base = Math.max(15, Math.min(24, 18 + fontScale));
-      document.documentElement.style.setProperty("--reader-font", `clamp(${base - 1}px, 1.65vw, ${base + 3}px)`);
+    }
+
+    function applyPrefs() {
+      const base = 19 + fontScale;
+      document.documentElement.style.setProperty("--reader-font", `${base}px`);
       document.body.classList.toggle("theme-dark", darkMode);
       document.getElementById("themeBtn").textContent = darkMode ? "Cream" : "Night";
+      document.getElementById("fontDownBtn").disabled = fontScale <= -4;
+      document.getElementById("fontBtn").disabled = fontScale >= 12;
     }
 
     function savePrefs() {
@@ -769,6 +783,7 @@
     function renderPage(n) {
       currentPage = clampPage(n);
       pageContent.innerHTML = "";
+      pageContent.scrollTop = 0;
 
       const page = pages[currentPage];
       if (!page) return;
@@ -896,11 +911,19 @@
     });
     document.getElementById("closeTocBtn").addEventListener("click", closeToc);
 
-    document.getElementById("fontBtn").addEventListener("click", () => {
-      fontScale = fontScale >= 4 ? -2 : fontScale + 1;
+    function changeFontSize(delta) {
+      fontScale = Math.max(-4, Math.min(12, fontScale + delta));
       savePrefs();
       applyPrefs();
-      paginate();
+      // Keep the same complete story displayed; only its height changes.
+    }
+
+    document.getElementById("fontBtn").addEventListener("click", () => changeFontSize(1));
+    document.getElementById("fontDownBtn").addEventListener("click", () => changeFontSize(-1));
+    document.getElementById("fontResetBtn").addEventListener("click", () => {
+      fontScale = 0;
+      savePrefs();
+      applyPrefs();
     });
 
     document.getElementById("themeBtn").addEventListener("click", () => {
@@ -952,11 +975,10 @@
     window.addEventListener("resize", delayedRepaginate);
     window.addEventListener("orientationchange", () => setTimeout(paginate, 350));
 
+    loadPrefs();
     applyPrefs();
     window.addEventListener("load", () => {
       paginate();
-      const saved = Number(localStorage.getItem(STORAGE_KEY));
-      if (Number.isFinite(saved)) renderPage(saved);
     });
   </script>
 </body>
